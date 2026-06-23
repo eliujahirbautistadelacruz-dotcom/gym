@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Gym Focus</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; --done: #22c55e; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .app { max-width: 450px; margin: auto; }
+        
+        .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .day-display { font-weight: 800; font-size: 1.2rem; color: var(--accent); }
+        
+        .card { background: var(--card); padding: 20px; border-radius: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
+        
+        .exercise { padding: 15px 0; cursor: pointer; display: flex; align-items: center; border-bottom: 1px solid #334155; transition: 0.3s; }
+        .exercise.done { opacity: 0.5; }
+        .checkbox { width: 24px; height: 24px; border: 2px solid var(--accent); border-radius: 8px; margin-right: 15px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .done .checkbox { background: var(--done); border-color: var(--done); }
+        
+        #final-message { display: none; text-align: center; padding: 40px 20px; }
+        .success-icon { font-size: 50px; margin-bottom: 10px; }
+        
+        .btn-nav { background: #334155; border: none; color: white; padding: 10px 20px; border-radius: 12px; cursor: pointer; }
+        .btn-edit { background: #475569; border: none; color: white; padding: 8px 15px; border-radius: 8px; cursor: pointer; margin-top: 15px; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <div class="nav-header">
+        <button class="btn-nav" onclick="changeDay(-1)">←</button>
+        <div id="day-name" class="day-display">Cargando...</div>
+        <button class="btn-nav" onclick="changeDay(1)">→</button>
+    </div>
+
+    <div class="card" id="routine-container"></div>
+
+    <div id="final-message" class="card">
+        <div class="success-icon">🏆</div>
+        <h2>¡Día Completado!</h2>
+        <p>Has terminado tu rutina. <br> ¡Buen trabajo, a descansar!</p>
+        <button class="btn-edit" onclick="undoCompletion()">← Desmarcar ejercicio (Editar)</button>
+    </div>
+</div>
+
+<script>
+    const rutinas = {
+        1: { name: "Lunes: Pecho y Tríceps", ex: [
+            { n: "Press Banca Plano", eq: "Mancuernas", s: "4 series x 12 reps" },
+            { n: "Press Pecho Inclinado", eq: "Mancuernas", s: "4 series x 12 reps" },
+            { n: "Aperturas Banco Plano", eq: "Mancuernas", s: "3 series x 12 reps" },
+            { n: "Extensión Tríceps", eq: "Polea Alta", s: "4 series x 15 reps" },
+            { n: "Fondos Tríceps", eq: "Banco", s: "4 series x 12 reps" }
+        ]},
+        2: { name: "Martes: Espalda y Bíceps", ex: [
+            { n: "Jalón al Pecho", eq: "Polea Alta", s: "4 series x 12 reps" },
+            { n: "Remo Sentado", eq: "Polea Baja", s: "4 series x 12 reps" },
+            { n: "Remo a una mano", eq: "Mancuerna", s: "3 series x 10 reps" },
+            { n: "Curl de Bíceps", eq: "Mancuernas", s: "4 series x 12 reps" },
+            { n: "Curl Martillo", eq: "Mancuernas", s: "4 series x 10 reps" }
+        ]},
+        3: { name: "Miércoles: Pierna (Cuádriceps)", ex: [
+            { n: "Sentadilla", eq: "Barra o Máquina", s: "4 series x 10 reps" },
+            { n: "Prensa de Piernas", eq: "Máquina", s: "4 series x 12 reps" },
+            { n: "Extensión Cuádriceps", eq: "Máquina", s: "4 series x 15 reps" },
+            { n: "Curl Femoral", eq: "Máquina", s: "3 series x 12 reps" },
+            { n: "Pantorrillas", eq: "Máquina", s: "4 series x 20 reps" }
+        ]},
+        4: { name: "Jueves: Hombro y Abdomen", ex: [
+            { n: "Press Militar", eq: "Mancuernas", s: "4 series x 10 reps" },
+            { n: "Elevaciones Laterales", eq: "Mancuernas", s: "4 series x 15 reps" },
+            { n: "Pájaros (Hombro post)", eq: "Mancuernas", s: "4 series x 15 reps" },
+            { n: "Crunches", eq: "Colchoneta", s: "3 series x 20 reps" },
+            { n: "Plancha", eq: "Peso corporal", s: "3 series x 60 seg" }
+        ]},
+        5: { name: "Viernes: Pierna (Femoral) y Brazo", ex: [
+            { n: "Peso Muerto Rumano", eq: "Mancuernas", s: "4 series x 10 reps" },
+            { n: "Zancadas Caminando", eq: "Mancuerna", s: "4 series x 12 pasos" },
+            { n: "Curl Bíceps", eq: "Barra Z", s: "4 series x 12 reps" },
+            { n: "Extensión Tríceps", eq: "Polea Alta", s: "4 series x 12 reps" }
+        ]}
+    };
+
+    let currentDay = new Date().getDay();
+    if(currentDay === 0 || currentDay === 6) currentDay = 1;
+
+    function checkCompletion() {
+        const total = document.querySelectorAll('.exercise').length;
+        const done = document.querySelectorAll('.exercise.done').length;
+        
+        if (total > 0 && total === done) {
+            document.getElementById('routine-container').style.display = 'none';
+            document.getElementById('final-message').style.display = 'block';
+        } else {
+            document.getElementById('routine-container').style.display = 'block';
+            document.getElementById('final-message').style.display = 'none';
+        }
+    }
+
+    function toggleExercise(el, id) {
+        el.classList.toggle('done');
+        localStorage.setItem(id, el.classList.contains('done'));
+        checkCompletion();
+    }
+
+    function undoCompletion() {
+        // En lugar de desmarcar todo, simplemente ocultamos el mensaje
+        document.getElementById('routine-container').style.display = 'block';
+        document.getElementById('final-message').style.display = 'none';
+    }
+
+    function render() {
+        const d = rutinas[currentDay];
+        document.getElementById('day-name').innerText = d ? d.name : "Descanso";
+        const container = document.getElementById('routine-container');
+        container.innerHTML = "";
+        
+        if(d) {
+            d.ex.forEach((e, idx) => {
+                const id = `day${currentDay}-ex${idx}`;
+                const isDone = localStorage.getItem(id) === 'true';
+                container.innerHTML += `
+                    <div class="exercise ${isDone ? 'done' : ''}" onclick="toggleExercise(this, '${id}')">
+                        <div class="checkbox">✓</div>
+                        <div>
+                            <div style="color:var(--accent); font-size:0.7rem; text-transform:uppercase;">${e.eq}</div>
+                            <div style="font-size:1.1rem; font-weight:600;">${e.n}</div>
+                            <div style="color:#94a3b8; font-size:0.9rem;">${e.s}</div>
+                        </div>
+                    </div>`;
+            });
+            checkCompletion();
+        }
+    }
+
+    function changeDay(offset) {
+        currentDay += offset;
+        if(currentDay < 1) currentDay = 5;
+        if(currentDay > 5) currentDay = 1;
+        render();
+    }
+
+    render();
+</script>
+</body>
+</html>
