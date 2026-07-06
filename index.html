@@ -1,148 +1,94 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Gym Focus</title>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Pro Gym: Estilo Boyka</title>
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Boyka Gym","short_name":"Boyka","start_url":"./index.html","display":"standalone","background_color":"#000","theme_color":"#000"}'>
     <style>
-        :root { --bg: #000000; --card: #000000; --accent: #38bdf8; --text: #f8fafc; --done: #22c55e; }
+        :root { --bg: #000; --card: #0a0a0a; --accent: #38bdf8; --text: #fff; --done: #22c55e; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         .app { max-width: 450px; margin: auto; }
-        
-        .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .day-display { font-weight: 800; font-size: 1.2rem; color: var(--accent); }
-        
-        .card { background: var(--card); padding: 20px; border-radius: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
-        
-        .exercise { padding: 15px 0; cursor: pointer; display: flex; align-items: center; border-bottom: 1px solid #334155; transition: 0.3s; }
-        .exercise.done { opacity: 0.5; }
-        .checkbox { width: 24px; height: 24px; border: 2px solid var(--accent); border-radius: 8px; margin-right: 15px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-        .done .checkbox { background: var(--done); border-color: var(--done); }
-        
-        #final-message { display: none; text-align: center; padding: 40px 20px; }
-        .success-icon { font-size: 50px; margin-bottom: 10px; }
-        
-        .btn-nav { background: #334155; border: none; color: white; padding: 10px 20px; border-radius: 12px; cursor: pointer; }
-        .btn-edit { background: #475569; border: none; color: white; padding: 8px 15px; border-radius: 8px; cursor: pointer; margin-top: 15px; font-size: 0.8rem; }
+        .progress-bar { height: 4px; background: #222; margin-bottom: 20px; border-radius: 2px; }
+        #progress-fill { height: 100%; background: var(--accent); width: 0%; transition: 0.3s; }
+        .card { background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid #222; margin-bottom: 20px; }
+        .exercise { padding: 15px 0; border-bottom: 1px solid #222; display: flex; align-items: center; cursor: pointer; }
+        .exercise.done { opacity: 0.4; }
+        .btn-rest { background: #111; color: var(--accent); border: 1px solid var(--accent); padding: 5px 10px; border-radius: 5px; font-size: 0.7rem; margin-left: 10px; }
+        .btn-nav { background: #111; border: 1px solid #333; color: white; padding: 10px 20px; border-radius: 12px; cursor: pointer; }
     </style>
 </head>
 <body>
-
-<div class="app">
-    <div class="nav-header">
-        <button class="btn-nav" onclick="changeDay(-1)">←</button>
-        <div id="day-name" class="day-display">Cargando...</div>
-        <button class="btn-nav" onclick="changeDay(1)">→</button>
+    <div class="app">
+        <div class="progress-bar"><div id="progress-fill"></div></div>
+        <div class="nav-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <button class="btn-nav" onclick="changeDay(-1)">←</button>
+            <div id="day-name" style="font-weight:900; color:var(--accent); font-size: 1.1rem;"></div>
+            <button class="btn-nav" onclick="changeDay(1)">→</button>
+        </div>
+        <div id="routine-container"></div>
+        <button onclick="resetWeek()" style="background:none; border:none; color:#444; width:100%; font-size:0.7rem; margin-top:10px;">Resetear semana</button>
     </div>
 
-    <div class="card" id="routine-container"></div>
+    <script>
+        const rutinas = { 
+            1: { name: "LUNES: PECHO Y HOMBROS", ex: [{n:"Press Banca", eq:"Barra", s:"4x8 Pesado"}, {n:"Press Inclinado", eq:"Mancuernas", s:"4x10"}, {n:"Aperturas Polea", eq:"Cable", s:"3x12"}, {n:"Press Militar", eq:"Barra", s:"4x8"}, {n:"Elev. Laterales", eq:"Mancuernas", s:"4x15"}, {n:"Lagartijas Explosivas", eq:"Suelo", s:"Al fallo"}]}, 
+            2: { name: "MARTES: ESPALDA Y BÍCEP", ex: [{n:"Dominadas", eq:"Barra", s:"4 al fallo"}, {n:"Remo con Barra", eq:"Barra", s:"4x8-10"}, {n:"Remo al Mentón", eq:"Barra", s:"3x12"}, {n:"Curl Barra Z", eq:"Barra Z", s:"4x10"}, {n:"Curl Martillo", eq:"Mancuernas", s:"3x12"}]},
+            3: { name: "MIÉRCOLES: PIERNA Y AGILIDAD", ex: [{n:"Sentadilla Libre", eq:"Barra", s:"4x8"}, {n:"Prensa de Piernas", eq:"Máquina", s:"3x12"}, {n:"Zancadas", eq:"Mancuernas", s:"3x20 pasos"}, {n:"Saltos al Cajón", eq:"Cajón", s:"4x10"}, {n:"Elev. Piernas", eq:"Colgado", s:"4x15"}]},
+            4: { name: "JUEVES: TORSO DENSIDAD", ex: [{n:"Fondos Paralelas", eq:"Peso corporal", s:"4 al fallo"}, {n:"Press Plano", eq:"Mancuernas", s:"3x10"}, {n:"Remo 1 mano", eq:"Mancuerna", s:"3x10"}, {n:"Pájaros (Hombro post)", eq:"Mancuernas", s:"4x15"}, {n:"Planchas dinámicas", eq:"Suelo", s:"3x1 min"}]},
+            5: { name: "VIERNES: DÍA BOYKA (EXPLOSIVIDAD)", ex: [{n:"Burpees", eq:"Suelo", s:"5x15"}, {n:"Flexiones Diamante", eq:"Suelo", s:"4 al fallo"}, {n:"Sentadillas con Salto", eq:"Peso corporal", s:"4x15"}, {n:"Sombra (Boxing)", eq:"Fluidez", s:"10 rounds x 2 min"}]}
+        };
 
-    <div id="final-message" class="card">
-        <div class="success-icon">🏆</div>
-        <h2>¡Día Completado!</h2>
-        <p>Has terminado tu rutina. <br> ¡Buen trabajo, a descansar!</p>
-        <button class="btn-edit" onclick="undoCompletion()">← Desmarcar ejercicio (Editar)</button>
-    </div>
-</div>
+        let currentDay = new Date().getDay() || 1; if(currentDay > 5) currentDay = 1;
 
-<script>
-    const rutinas = {
-        1: { name: "Lunes: Pecho y Tríceps", ex: [
-            { n: "Press Banca Plano", eq: "Mancuernas", s: "4 series x 12 reps" },
-            { n: "Press Pecho Inclinado", eq: "Mancuernas", s: "4 series x 12 reps" },
-            { n: "Aperturas Banco Plano", eq: "Mancuernas", s: "3 series x 12 reps" },
-            { n: "Extensión Tríceps", eq: "Polea Alta", s: "4 series x 15 reps" },
-            { n: "Fondos Tríceps", eq: "Banco", s: "4 series x 12 reps" }
-        ]},
-        2: { name: "Martes: Espalda y Bíceps", ex: [
-            { n: "Jalón al Pecho", eq: "Polea Alta", s: "4 series x 12 reps" },
-            { n: "Remo Sentado", eq: "Polea Baja", s: "4 series x 12 reps" },
-            { n: "Remo a una mano", eq: "Mancuerna", s: "3 series x 10 reps" },
-            { n: "Curl de Bíceps", eq: "Mancuernas", s: "4 series x 12 reps" },
-            { n: "Curl Martillo", eq: "Mancuernas", s: "4 series x 10 reps" }
-        ]},
-        3: { name: "Miércoles: Pierna (Cuádriceps)", ex: [
-            { n: "Sentadilla", eq: "Barra o Máquina", s: "4 series x 10 reps" },
-            { n: "Prensa de Piernas", eq: "Máquina", s: "4 series x 12 reps" },
-            { n: "Extensión Cuádriceps", eq: "Máquina", s: "4 series x 15 reps" },
-            { n: "Curl Femoral", eq: "Máquina", s: "3 series x 12 reps" },
-            { n: "Pantorrillas", eq: "Máquina", s: "4 series x 20 reps" }
-        ]},
-        4: { name: "Jueves: Hombro y Abdomen", ex: [
-            { n: "Press Militar", eq: "Mancuernas", s: "4 series x 10 reps" },
-            { n: "Elevaciones Laterales", eq: "Mancuernas", s: "4 series x 15 reps" },
-            { n: "Pájaros (Hombro post)", eq: "Mancuernas", s: "4 series x 15 reps" },
-            { n: "Crunches", eq: "Colchoneta", s: "3 series x 20 reps" },
-            { n: "Plancha", eq: "Peso corporal", s: "3 series x 60 seg" }
-        ]},
-        5: { name: "Viernes: Pierna (Femoral) y Brazo", ex: [
-            { n: "Peso Muerto Rumano", eq: "Mancuernas", s: "4 series x 10 reps" },
-            { n: "Zancadas Caminando", eq: "Mancuerna", s: "4 series x 12 pasos" },
-            { n: "Curl Bíceps", eq: "Barra Z", s: "4 series x 12 reps" },
-            { n: "Extensión Tríceps", eq: "Polea Alta", s: "4 series x 12 reps" }
-        ]}
-    };
-
-    let currentDay = new Date().getDay();
-    if(currentDay === 0 || currentDay === 6) currentDay = 1;
-
-    function checkCompletion() {
-        const total = document.querySelectorAll('.exercise').length;
-        const done = document.querySelectorAll('.exercise.done').length;
-        
-        if (total > 0 && total === done) {
-            document.getElementById('routine-container').style.display = 'none';
-            document.getElementById('final-message').style.display = 'block';
-        } else {
-            document.getElementById('routine-container').style.display = 'block';
-            document.getElementById('final-message').style.display = 'none';
+        function updateProgress() {
+            const total = document.querySelectorAll('.exercise').length;
+            const done = document.querySelectorAll('.exercise.done').length;
+            document.getElementById('progress-fill').style.width = (done/total)*100 + "%";
         }
-    }
 
-    function toggleExercise(el, id) {
-        el.classList.toggle('done');
-        localStorage.setItem(id, el.classList.contains('done'));
-        checkCompletion();
-    }
+        function toggleExercise(el, id) { 
+            el.classList.toggle('done'); 
+            localStorage.setItem(id, el.classList.contains('done')); 
+            updateProgress();
+        }
 
-    function undoCompletion() {
-        // En lugar de desmarcar todo, simplemente ocultamos el mensaje
-        document.getElementById('routine-container').style.display = 'block';
-        document.getElementById('final-message').style.display = 'none';
-    }
+        function restTimer() {
+            let s = 60;
+            const b = event.target;
+            const i = setInterval(() => {
+                b.innerText = --s + "s";
+                if(s<=0) { clearInterval(i); b.innerText = "60s"; }
+            }, 1000);
+        }
 
-    function render() {
-        const d = rutinas[currentDay];
-        document.getElementById('day-name').innerText = d ? d.name : "Descanso";
-        const container = document.getElementById('routine-container');
-        container.innerHTML = "";
-        
-        if(d) {
+        function resetWeek() { if(confirm("¿Borrar todo el progreso semanal?")) { localStorage.clear(); render(); } }
+
+        function render() {
+            const d = rutinas[currentDay]; document.getElementById('day-name').innerText = d.name;
+            const container = document.getElementById('routine-container'); container.innerHTML = "";
             d.ex.forEach((e, idx) => {
-                const id = `day${currentDay}-ex${idx}`;
-                const isDone = localStorage.getItem(id) === 'true';
-                container.innerHTML += `
-                    <div class="exercise ${isDone ? 'done' : ''}" onclick="toggleExercise(this, '${id}')">
-                        <div class="checkbox">✓</div>
-                        <div>
-                            <div style="color:var(--accent); font-size:0.7rem; text-transform:uppercase;">${e.eq}</div>
-                            <div style="font-size:1.1rem; font-weight:600;">${e.n}</div>
-                            <div style="color:#94a3b8; font-size:0.9rem;">${e.s}</div>
-                        </div>
-                    </div>`;
+                const id = `d${currentDay}-e${idx}`;
+                container.innerHTML += `<div class="card exercise ${localStorage.getItem(id) === 'true' ? 'done' : ''}" onclick="toggleExercise(this, '${id}')">
+                    <div>
+                        <div style="font-size:0.7rem; color:var(--accent)">${e.eq}</div>
+                        <div style="font-size:1.1rem; font-weight:bold">${e.n}</div>
+                        <div style="color:#666; font-size:0.9rem">${e.s}</div>
+                    </div>
+                    <button class="btn-rest" onclick="event.stopPropagation(); restTimer()">60s</button>
+                </div>`;
             });
-            checkCompletion();
+            updateProgress();
         }
-    }
 
-    function changeDay(offset) {
-        currentDay += offset;
-        if(currentDay < 1) currentDay = 5;
-        if(currentDay > 5) currentDay = 1;
+        function changeDay(o) { currentDay += o; if(currentDay < 1) currentDay = 5; if(currentDay > 5) currentDay = 1; render(); }
+        
+        // Registro de Service Worker para modo offline
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(new Blob([`
+                self.addEventListener('install', e => e.waitUntil(caches.open('boyka-gym-v1').then(c => c.addAll(['./index.html']))));
+                self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
+            `], {type: 'text/javascript'}));
+        }
         render();
-    }
-
-    render();
-</script>
+    </script>
 </body>
 </html>
